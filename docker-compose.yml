@@ -1,0 +1,54 @@
+# PiCloud — services du serveur auto-hébergé
+#
+# Fichier reconstitué à partir des commandes « docker run » utilisées sur le serveur.
+# Toutes les valeurs personnelles (domaine, mots de passe, jeton du tunnel, chemins)
+# sont lues dans le fichier .env, qui n'est jamais publié : voir .env.example.
+#
+# Démarrage :   docker compose up -d
+# Mise à jour : docker compose pull && docker compose up -d
+
+services:
+
+  nextcloud:
+    image: nextcloud:latest            # base de données SQLite intégrée
+    container_name: nextcloud
+    restart: always
+    ports:
+      - "8080:80"                      # accès local : http://<ip-du-pi>:8080
+    environment:
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_DOMAIN}
+    volumes:
+      - ${DATA_DIR}/nextcloud:/var/www/html
+      - ${DATA_DIR}/jellyfin/media:/mnt/media    # dossier partagé avec Jellyfin (stockage externe)
+
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: always
+    ports:
+      - "8096:8096"
+    volumes:
+      - ${DATA_DIR}/jellyfin/config:/config
+      - ${DATA_DIR}/jellyfin/media:/media
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    ports:
+      - "9000:9000"                    # HTTP : utilisé par le tunnel (le HTTPS est assuré par Cloudflare)
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+
+volumes:
+  portainer_data:

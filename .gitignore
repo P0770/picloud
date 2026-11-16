@@ -1,0 +1,9 @@
+# Secrets : ne jamais publier
+.env
+*.env
+!.env.example
+
+# Données des services
+data/
+*.log
+.DS_Store
